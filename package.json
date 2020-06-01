@@ -10,16 +10,51 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:mediawiki-editor.helloWorld"
+		"onCommand:mediawiki-editor.helloWorld",
+		"onLanguage:mediawiki",
+		"onCommand:mediawiki-editor.findArticle"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [
 			{
-				"command": "mediawiki-editor.helloWorld",
-				"title": "Hello World"
+				"command": "mediawiki-editor.login",
+				"title": "Login to Wiki"
+			},
+			{
+				"command": "mediawiki-editor.findArticle",
+				"title": "Search for a Wiki Article"
+			},
+			{
+				"command": "mediawiki-editor.commitEdits",
+				"title": "Commit Edits to wiki"
 			}
-		]
+		],
+		"configuration": {
+			"title": "MediaWiki Editor",
+			"properties": {
+				"mediawiki-editor.wikiUrl": {
+					"type": "string",
+					"default": "",
+					"markdownDescription": "The URL of the wiki's article path, e.g. `https://wikipedia.org/w`."
+				},
+				"mediawiki-editor.enums": {
+					"type": "boolean",
+					"default": true
+				},
+				"mediawiki-editor.number": {
+					"type": "number",
+					"default": 1,
+					"minimum": 1,
+					"maximum": 20
+				},
+				"mediawiki-editor.asBot": {
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Mark edits as having been done by a bot."
+				}
+			}
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "yarn run compile",
