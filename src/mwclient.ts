@@ -19,16 +19,28 @@ interface PSResultItem {
 }
 
 interface RVResult {
+    /**
+     * @property {curtimestamp} ISO date string.
+     * @property {continue} Present if there are additional pages.
+     * @property {rvcontinue} Token whose value must be included in rvcontinue
+     * value in the next request to get the following page.
+     */
     query: {
         pages: any
+    },
+    curtimestamp: string,
+    continue: {
+        rvcontinue: string
+        continue: string
     }
 }
 
 interface TokenResult {
 	/***
-	 * @query Result body.
-	 * @tokens A map of the requested tokens.
-	 * @logintoken A token needed to use the login API.
+	 * @property {query} Result body.
+	 * @property {tokens} A map of the requested tokens.
+	 * @property {logintoken} A token needed to use the login API.
+     * @property {csrftoken} A token needed to edit pages.
 	 */
 	query: {
 		tokens: {
@@ -80,7 +92,7 @@ interface EditResult {
         newtimestamp: string 
     }
 }
-export enum TokenType {
+enum TokenType {
     CREATE_ACCOUNT = "createaccount",
     CSRF = "csrf",
     DELETE_GLOBAL_ACCOUNT = "deleteglobalaccount",
@@ -199,14 +211,18 @@ export class MWClient {
     /**
      * Get a revision by ID.
      * @param {id} An ID of a specific revision.
+     * @param {next} A continuation token from a previous request. If 
+     * supplied, the next page will be returned.
      */
-    public static async getRevisionAsync(id: number): Promise<RVResult>;
+    public static async getRevisionAsync(id: number, next?: string): Promise<RVResult>;
     /**
      * Get the latest revision of an article by its title.
      * @param {title} The title of an article.
+     * @param {next} A continuation token from a previous request. If 
+     * supplied, the next page will be returned.
      */
-    public static async getRevisionAsync(title: string): Promise<RVResult>;
-    public static async getRevisionAsync(id: string | number): Promise<RVResult> {
+    public static async getRevisionAsync(title: string, next?: string): Promise<RVResult>;
+    public static async getRevisionAsync(id: string | number, next?: string): Promise<RVResult> {
         return new Promise<RVResult>(async (resolve, reject) => {
             let form = new FormData();
             form.append("action", "query");
