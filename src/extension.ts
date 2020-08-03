@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
-import { MWClient, TokenType } from './mwclient';
+import { MWClient } from './mwclient';
 import path = require('path');
 import { existsSync, mkdirSync } from 'fs';
+import { Preview } from './preview';
+import { parse } from 'path';
 
 let articlePicker = vscode.window.createQuickPick();
 let SAVE_ROOT: vscode.Uri;
@@ -19,6 +21,7 @@ function articlePickerDidChangeValueHandler(val: string) {
 	debounceTimeoutId = setTimeout(async () => {
 		let result = await MWClient.prefixSearchAsync(val);
 		let resultMap = result.query?.prefixsearch.map(item => {
+			
 			return {
 				label: item["title"]
 			};
@@ -26,6 +29,7 @@ function articlePickerDidChangeValueHandler(val: string) {
 		articlePicker.items = resultMap ?? [];
 	}, DEBOUNCE_THRESHOLD);
 }
+
 articlePicker.onDidChangeValue(articlePickerDidChangeValueHandler);
 articlePicker.onDidAccept(async () => {
 	if (articlePicker.selectedItems.length === 0) {
@@ -44,6 +48,10 @@ articlePicker.onDidAccept(async () => {
 		return MWClient.getRevisionAsync(articlePicker.selectedItems[0].label);
 	});
 	let pageIds = Object.getOwnPropertyNames(response.query.pages);
+	for (let pageId in response.query.pages) {
+		let a =response.query.pages[pageId];
+		
+	}
 	let revisions = pageIds.map(id => {
 		return {
 			"user": response.query.pages[id].revisions[0].user,
@@ -134,9 +142,130 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	context.subscriptions.push(findArticle,loginCommand);
+	const provider = new RevisionProvider();
+
+	vscode.window.registerTreeDataProvider(
+		'revisionExplorer',
+		provider
+	);
+	vscode.commands.registerCommand("mediawiki-editor.refreshEntry", () => {
+		provider.refresh();
+	});
+
+	vscode.commands.registerCommand('revisionExplorer.getRevisions', (title: string) => {
+
+	});
+
+	context.subscriptions.push(findArticle,loginCommand, commitEditsCommand);
+
+	vscode.workspace.onWillSaveTextDocument(async event => {
+		console.log("Document save event");
+		Preview.getInstance().setPanelTitle("Previewing: " + path.basename(event.document.fileName));
+		let parsedTextResponse = await MWClient.getParsedWikiText(event.document.getText());
+		Preview.getInstance().setHtml(parsedTextResponse.parse.text["*"]);
+		Preview.show();
+	});
 }
 
 export function deactivate() {
 	console.log('Extension mediawiki-editor deactivated.');
 }
+
+export class RevisionProvider implements vscode.TreeDataProvider<Revision> {
+
+	private pages = new Map<string, Array<any>>();
+
+	async getTreeItem(element: Revision): Promise<vscode.TreeItem> {
+		return Promise.resolve(element);
+	}
+
+	async getChildren(element?: Revision): Promise<Revision[]> {
+		if (element) {
+			if (!element.isPage) {
+				let a = this.pages.get(element.label);
+				return Promise.resolve([]);
+			}
+			return Promise.resolve([new Revision("revision",vscode.TreeItemCollapsibleState.None, false),]);
+		} else {
+			// let revisionsMap = vscode.workspace.textDocuments.map(document => {
+			// 	if (document.fileName.indexOf(".wiki") < 0)  {
+			// 		return new Revision(document.fileName, vscode.TreeItemCollapsibleState.Collapsed);
+			// 	}
+			// 	return null;
+			// });
+			let a = new Set();
+			let articles = vscode.workspace.textDocuments
+										   .filter(document => document.fileName.indexOf(".wiki") >= 0)
+										   .map(document => path.basename(document.fileName, ".wiki"));
+			// Gather all new documents
+			let newArticles = articles.filter(articleName => !this.pages.has(articleName));
+			console.log(`${newArticles.length} new articles`, newArticles);
+			// Get 3 revisions of all new documents
+			let responses = await Promise.all(newArticles.map(article => MWClient.getRevisionAsync(article, 3)));
+			let revisions = new Array<Revision>();
+			for (let response of responses) {
+				for (let pageId in response.query.pages) {
+					let page = response.query.pages[pageId];
+					// Add new documents to `pages` cache
+					this.pages.set(page.title, page.revisions);
+					return Promise.resolve([new Revision(page.title, vscode.TreeItemCollapsibleState.Expanded, true)]);
+				}
+			}
+			
+			return Promise.resolve([]);
+			// let revisions = articles.map(doc => {
+			// 	return new Revision(path.basename(doc.fileName,".wiki"), vscode.TreeItemCollapsibleState.Collapsed, true);
+			// });
+		}
+	}
+
+	private _onDidChangeTreeData: vscode.EventEmitter<Revision|undefined> = new vscode.EventEmitter<Revision|undefined>();
+	readonly onDidChangeTreeData: vscode.Event<Revision|undefined> = this._onDidChangeTreeData.event;
+
+	refresh(changedElement?: Revision): void {
+		this._onDidChangeTreeData.fire(changedElement);
+	}	
+}
+
+
+
+class Revision extends vscode.TreeItem {
+
+	constructor(
+		public readonly label: string,
+		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+		public readonly isPage: boolean,
+		public description?: string,
+		// public readonly pageId?: number,
+		// public readonly revId?: number
+	) {
+		super(label, collapsibleState);
+		if (isPage) {
+			this.iconPath = { 
+				light : path.join(__filename, '..','..',"media", "file.svg"),
+				dark : path.join(__filename, '..','..',"media", "file_dark.svg")
+			};
+		} else {
+			this.iconPath = { 
+				light : path.join(__filename, '..','..',"media", "go-to-file.svg"),
+				dark : path.join(__filename, '..','..',"media", "go-to-file_dark.svg")
+			};
+		}
+	}
+
+	get tooltip(): string {
+		return "";
+	}
+
+	// get description(): string {
+	// 	// Should this be creation timestamp?
+	// 	return `Description`;
+	// }
+}
+
+vscode.window.onDidChangeActiveTextEditor(async () => {
+	// On activation, build state including
+	// revisions on all known documents that are wiki articles
+	console.log("Changed active text editor!");
+	vscode.commands.executeCommand("mediawiki-editor.refreshEntry");
+});
