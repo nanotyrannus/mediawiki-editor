@@ -5,14 +5,17 @@ An extension that turns VSCode into an editor for your wiki.
 ### Todo
 
 - [ ] Autocomplete for wiki links  
-- [ ] Scrape external links for citation data  
+- [ ] Scrape external links for citation data. metascraper library  
 - [ ] Click-through links like through Edit and Article Links  
-- [ ] Tree View for revisions  
 - [ ] Roll own node-fetch to save cookie state between sessions.  
-- [ ] Add multi-revision view  
+- [ ] Optional comment before commit  
+- [ ] Tree View for revisions  
+- [ ] Add interactive links on Preview. Maybe use beautiful-dom library to inject scripts.  
 
 ### In Progress
 
+- [ ] Add multi-revision view  
+- [ ] Article Preview  
 
 ### Done ✓
 
