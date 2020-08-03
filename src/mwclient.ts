@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as FormData from 'form-data';
 import * as NodeFetch from 'node-fetch';
+import { stat } from 'fs';
 const fetch = require('fetch-cookie')(NodeFetch);
 
 const WIKI_URL = vscode.workspace.getConfiguration("mediawiki-editor").get("wikiUrl");
@@ -26,13 +27,45 @@ interface RVResult {
      * value in the next request to get the following page.
      */
     query: {
-        pages: any
+        pages: {
+            [pageId: string]: RVPage
+        }
     },
     curtimestamp: string,
-    continue: {
+    continue?: {
         rvcontinue: string
         continue: string
     }
+}
+
+interface RVPage {
+    /**
+     * @property {pageid} The unique ID of a wiki article.
+     * @property {title} The unique title of a wiki article.
+     * @property {revisions} An array of revision items belonging to an article.
+     * @property {ns} TODO still don't know what the heck this is.
+     */
+    pageid: number
+    ns: number
+    title: string
+    revisions: Array<RVRevision>
+}
+
+interface RVRevision {
+    /**
+     * @property {revid} The unique ID of a revision of a wiki article. 
+     * @property {parentid} The ID of a revision that directly preceeds this revision.
+     * @property {user} The username of the author of this revision.
+     * @property {timestamp} The timestamp of when this revision was submitted.
+     * @property {tags} TODO
+     * @property {slots} TODO
+     */
+    revid: number
+    parentid: number
+    user: string
+    timestamp: string
+    slots: any
+    tags: string[]
 }
 
 interface TokenResult {
@@ -104,6 +137,20 @@ enum TokenType {
     WATCH = "watch"
 }
 
+interface ParsedResponse {
+    timestamp: string,
+    parse: {
+        text: {
+            "*" : string
+        },
+        categories: Array<{
+            "*" : string,
+            missing: string,
+            sortkey: string
+        }>
+    }
+}
+
 export class MWClient {
 
     /**
@@ -142,6 +189,26 @@ export class MWClient {
             .then(statusCheck)
             .then(logMessage(`FROM getTokenAsync: ${token}`))
             .then(toJson);
+            resolve(response);
+        });
+    }
+
+    public static async getParsedWikiText(text: string): Promise<ParsedResponse> {
+        return new Promise(async (resolve, reject) => {
+            let form = new FormData();
+            form.append('action', 'parse');
+            form.append('format', 'json');
+            form.append('text', text);
+            form.append('contentmodel','wikitext');
+            form.append('curtimestamp', 'true');
+
+            let response = await fetch(`${WIKI_URL}/api.php`, {
+                method: 'POST',
+                body: form
+            })
+            .then(statusCheck)
+            .then(toJson);
+
             resolve(response);
         });
     }
@@ -214,15 +281,15 @@ export class MWClient {
      * @param {next} A continuation token from a previous request. If 
      * supplied, the next page will be returned.
      */
-    public static async getRevisionAsync(id: number, next?: string): Promise<RVResult>;
+    public static async getRevisionAsync(id: number, numberOfRevisions?: number, next?: string): Promise<RVResult>;
     /**
      * Get the latest revision of an article by its title.
      * @param {title} The title of an article.
      * @param {next} A continuation token from a previous request. If 
      * supplied, the next page will be returned.
      */
-    public static async getRevisionAsync(title: string, next?: string): Promise<RVResult>;
-    public static async getRevisionAsync(id: string | number, next?: string): Promise<RVResult> {
+    public static async getRevisionAsync(title: string, numberOfRevisions?: number, next?: string): Promise<RVResult>;
+    public static async getRevisionAsync(id: string | number, numberOfRevisions?: number, next?: string): Promise<RVResult> {
         return new Promise<RVResult>(async (resolve, reject) => {
             let form = new FormData();
             form.append("action", "query");
@@ -237,6 +304,14 @@ export class MWClient {
                 form.append('titles', id);
             } else if (typeof id === "number") {
                 form.append('revids', String(id));
+            }
+
+            if (numberOfRevisions) {
+                form.append("rvlimit", String(numberOfRevisions));
+            }
+
+            if (next) {
+                form.append('rvcontinue', next);
             }
 
             let response = await fetch(`${WIKI_URL}/api.php`, {
