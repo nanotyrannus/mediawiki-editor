@@ -135,7 +135,7 @@ export function activate(context: vscode.ExtensionContext) {
 					console.log(result);
 				}
 			} else {
-				console.log("articlePath falsy: ", articlePath);
+				console.warn("articlePath falsy: ", articlePath);
 			}
 		} catch (e) {
 			vscode.window.showErrorMessage(`${e.name}: ${e.message}`);
@@ -153,16 +153,26 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	vscode.commands.registerCommand('revisionExplorer.getRevisions', (title: string) => {
-
+		console.warn("NOT IMPLEMENTED");
 	});
 
 	context.subscriptions.push(findArticle,loginCommand, commitEditsCommand);
 
 	vscode.workspace.onWillSaveTextDocument(async event => {
 		console.log("Document save event");
+		if (!Preview.getInstance().isEmpty()) {
+			Preview.getInstance().fadeOut();
+		}
 		Preview.getInstance().setPanelTitle("Previewing: " + path.basename(event.document.fileName));
-		let parsedTextResponse = await MWClient.getParsedWikiText(event.document.getText());
-		Preview.getInstance().setHtml(parsedTextResponse.parse.text["*"]);
+		let parsedTextResponse = await vscode.window.withProgress({
+			"cancellable" : false,
+			"location" : vscode.ProgressLocation.Window,
+			"title" : `Loading preview for ${path.basename(event.document.fileName)}`
+		}, _ => {
+			return MWClient.getParsedWikiText(event.document.getText());
+		}); 
+		Preview.getInstance().setWikiHtml(parsedTextResponse.parse.text["*"]);
+		Preview.getInstance().finalize();
 		Preview.show();
 	});
 }

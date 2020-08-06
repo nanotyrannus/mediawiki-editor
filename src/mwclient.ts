@@ -193,6 +193,24 @@ export class MWClient {
         });
     }
 
+    public static async getResourcesPromise(): Promise<string> {
+        return new Promise(async (resolve, reject) => {
+            let form = new FormData();
+            form.append("debug", "false");
+            form.append("lang", "eng");
+            form.append("modules", ["ext.cite.styles","mediawiki.legacy.commonPrint,shared","mediawiki.skinning.content.externallinks","mediawiki.toc.styles"].join("|"));
+            form.append("only", "styles");
+            form.append("skin", "timeless");
+            let response = await fetch(`${WIKI_URL}/load.php`, {
+                method: 'POST',
+                body: form
+            })
+            .then(statusCheck)
+            .then((res: any) => res.text());
+            resolve(response);
+        });
+    }
+
     public static async getParsedWikiText(text: string): Promise<ParsedResponse> {
         return new Promise(async (resolve, reject) => {
             let form = new FormData();
