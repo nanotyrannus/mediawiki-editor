@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 
+const WIKI_URL = vscode.workspace.getConfiguration("mediawiki-editor").get("wikiUrl");
+
 export class Preview {
     private static instance: Preview;
     private html = "";
@@ -65,7 +67,7 @@ export class Preview {
         </script>
         <style>${this.style}</style>
         <style>body {opacity: 0; transition-property: opacity; transition-duration: 0.5s;} </style>
-			<base href="https://wiki.rconstantino.com/"></base>
+			<base href="${WIKI_URL}"></base>
 			<meta charset="UTF-8">
 			<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		</head>
