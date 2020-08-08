@@ -341,6 +341,33 @@ export class MWClient {
             resolve(response);
         });
     }
+
+    public static async getHtmlAsync(page: string) {
+        return new Promise<HtmlResponse>(async (resolve, reject) => {
+            let form = new FormData();
+            form.append("action", "parse");
+            form.append("prop", "text");
+            form.append("page", page);
+            form.append("format", "json");
+            form.append("curtimestamp", "true");
+
+            let response = await fetch(`${WIKI_URL}/api.php`, {
+                method: 'POST',
+                body: form
+            }).then(toJson);
+            resolve(response);
+        });
+    }
+
+}
+interface HtmlResponse {
+    parse: {
+        title: string,
+        pageid: number,
+        text: {
+            "*" : string
+        }
+    }
 }
 
 function logIt(result: any) {
