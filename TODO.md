@@ -10,11 +10,11 @@ An extension that turns VSCode into an editor for your wiki.
 - [ ] Optional comment before commit  
 - [ ] Tree View for revisions  
 - [ ] Add multi-revision view  
+- [ ] Add page stack for back-forward navigation on Preview  
 
 ### In Progress
 
-- [ ] Click-through links like through Edit and Article Links  
-- [ ] Add interactive links on Preview. Maybe use beautiful-dom library to inject scripts.  
+- [ ] Clickable Edit links to edit section  
 
 ### Done ✓
 
@@ -22,4 +22,5 @@ An extension that turns VSCode into an editor for your wiki.
 - [x] Save Edit  
 - [x] Login  
 - [x] Article Preview  
+- [x] Add interactive links on Preview.  
 
