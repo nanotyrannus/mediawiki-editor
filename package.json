@@ -19,9 +19,9 @@
 		"viewsContainers": {
 			"activitybar": [
 				{
-					"id":"revision-container",
-					"title" : "Revision Explorer",
-					"icon" : "media/icon_dark.svg"
+					"id": "revision-container",
+					"title": "Revision Explorer",
+					"icon": "media/icon_dark.svg"
 				}
 			]
 		},
@@ -30,7 +30,7 @@
 				{
 					"command": "mediawiki-editor.refreshEntry",
 					"when": "view == revisionExplorer",
-					"group" : "navigation"
+					"group": "navigation"
 				}
 			]
 		},
@@ -38,17 +38,17 @@
 			"revision-container": [
 				{
 					"id": "revisionExplorer",
-					"name" : "Revision Explorer"
+					"name": "Revision Explorer"
 				}
 			]
 		},
 		"commands": [
 			{
-				"command" : "mediawiki-editor.refreshEntry",
-				"title" : "Refresh",
-				"icon" : {
-                    "light": "media/refresh_light.svg",
-                    "dark": "media/refresh_dark.svg"
+				"command": "mediawiki-editor.refreshEntry",
+				"title": "Refresh",
+				"icon": {
+					"light": "media/refresh_light.svg",
+					"dark": "media/refresh_dark.svg"
 				}
 			},
 			{
