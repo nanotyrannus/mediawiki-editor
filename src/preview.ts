@@ -9,6 +9,10 @@ export class Preview {
     private style = "";
     public disposed: boolean;
     private panel: vscode.WebviewPanel;
+    private static _onOpenEditor = new vscode.EventEmitter<string>();
+    private static _onLinkNew = new vscode.EventEmitter<string>();
+    public static readonly onOpenEditor = Preview._onOpenEditor.event;
+    public static readonly onLinkNew = Preview._onLinkNew.event;
 
     private constructor() {
         this.panel = this.WebviewPanelFactory();
@@ -48,10 +52,21 @@ export class Preview {
                     Preview.navigateTo(title);
                     break;
                 case 'link-new': // Ask if user wants to create page.
-                    vscode.window.showInformationMessage("link-new: " + message.data);
+                    // vscode.window.showInformationMessage("link-new: " + message.data);
+                    let href = <string>message.data;
+                    if (href.indexOf("redlink") > 0) {
+                        let page = href.match(/title=([_a-zA-Z]+)/)?.[1] ?? "";
+                        if (page) {
+                            Preview._onLinkNew.fire(page);
+                        } else {
+                            vscode.window.showErrorMessage("Something went wrong: link-new falsy.");
+                        }
+                    } else {
+                        Preview._onLinkNew.fire(message.data);
+                    }
                     break;
                 case 'open-editor':
-                    vscode.window.showInformationMessage(`Opening: ${message.data}`);
+                    Preview._onOpenEditor.fire(message.data);
                     break;
                 default: vscode.window.showWarningMessage(`Unknown command: ${message.command}`);
             }
@@ -116,6 +131,8 @@ export class Preview {
                         });
                     });
                     break;
+                default:
+                    console.error(\`Unsupported command: \${message.data}\`);
             }
         });
         </script>
@@ -141,6 +158,9 @@ export class Preview {
         }
         .edit-btn:hover {
             opacity: 1;
+        }
+        a.external {
+            text-decoration: underline dotted;
         }
         </style>
 			<base href="${WIKI_URL}"></base>

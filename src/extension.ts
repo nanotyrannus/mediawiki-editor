@@ -40,18 +40,16 @@ articlePicker.onDidAccept(async () => {
 		console.log(option);
 		return;
 	}
+	const selectedItem = articlePicker.selectedItems[0];
+	const itemName = selectedItem.label;
 	let response = await vscode.window.withProgress({
 		"location" : vscode.ProgressLocation.Window,
 		"cancellable" : false,
-		"title": `Fetching ${articlePicker.selectedItems[0].label}`
+		"title": `Fetching ${itemName}`
 	}, async () => {
-		return MWClient.getRevisionAsync(articlePicker.selectedItems[0].label);
+		return MWClient.getRevisionAsync(itemName);
 	});
 	let pageIds = Object.getOwnPropertyNames(response.query.pages);
-	for (let pageId in response.query.pages) {
-		let a =response.query.pages[pageId];
-		
-	}
 	let revisions = pageIds.map(id => {
 		return {
 			"user": response.query.pages[id].revisions[0].user,
@@ -59,37 +57,58 @@ articlePicker.onDidAccept(async () => {
 		};
 	});
 	for (let revision of revisions) {
-		let filename = path.join(SAVE_ROOT.fsPath, articlePicker.selectedItems[0].label + ".wiki");
-		let scheme = existsSync(filename) ? "file:" : "untitled:";
-		// let option = await vscode.window.showInformationMessage(`${findArticlePicker.selectedItems[0].label} already exists. Overwrite local file?`, Overwrite.YES, Overwrite.NO);
-		// if (option === Overwrite.YES) {
-
-		// }
-		let file = vscode.Uri.parse(scheme + filename);
-		let document = await vscode.workspace.openTextDocument(file);
-		// vscode.workspace.fs.stat(file).then(success => {
-		// 	console.log("stat: ", success);
-		// }, reject => {
-		// 	console.error("stat error: ", reject);
-		// });
-		let edit = new vscode.WorkspaceEdit();
-		if (document.getText() === "") {
-			edit.insert(file, new vscode.Position(0, 0), revision.content);
-		}
-		return vscode.workspace.applyEdit(edit).then(success => {
-			if (success) {
-				vscode.window.showTextDocument(document);
-			} else {
-				vscode.window.showInformationMessage("Failed to show document.");
-			}
-		});
+		openEditor(itemName, revision.content);
 	}
 	articlePicker.hide();
 });
 
+enum Overwrite {
+	YES = "Yes, overwrite",
+	NO = "No, keep current file"
+}
+
+async function openEditor(wikiPageTitle: string, content: string) {
+	let filename = path.join(SAVE_ROOT.fsPath, wikiPageTitle + ".wiki");
+	let fileExists = existsSync(filename);
+	let overwrite = Overwrite.NO;
+	if (fileExists) {
+		overwrite = <Overwrite>(await vscode.window.showInformationMessage(`File ${wikiPageTitle}.wiki already exists on disk. Overwrite?`, Overwrite.YES, Overwrite.NO) ?? Overwrite.NO);
+	}
+	let scheme = fileExists ? "file:" : "untitled:";
+	let file = vscode.Uri.parse(scheme + filename);
+	let document = await vscode.workspace.openTextDocument(file);
+	let edit = new vscode.WorkspaceEdit();
+	if (document.getText() === "" || overwrite === Overwrite.YES) {
+		edit.insert(file, new vscode.Position(0, 0), content);
+	}
+	return vscode.workspace.applyEdit(edit).then(success => {
+		if (success) {
+			vscode.window.showTextDocument(document, vscode.ViewColumn.One);
+		} else {
+			vscode.window.showInformationMessage("Failed to show document.");
+		}
+	});
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Extension mediawiki-editor active.');
-	SAVE_ROOT = vscode.Uri.parse(context.globalStoragePath);
+	let workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+	SAVE_ROOT = workspaceFolder?.uri ?? vscode.Uri.parse(context.globalStoragePath);
+	if (!workspaceFolder) {
+		vscode.window.showWarningMessage(`Workspace not found. Will place .wiki files in ${SAVE_ROOT.fsPath}`);
+	}
+	Preview.onOpenEditor(async (page) => {
+		let revision = await MWClient.getLatestRevisionAsync(page);
+		openEditor(page, revision.content);
+	});
+	Preview.onLinkNew(async (page) => {
+		let answer = await vscode.window.showInformationMessage("Page does not yet exist. Open blank editor?", "Yes", "No");
+		if (answer === "No") {
+			return;
+		} else {
+			openEditor(page, "");
+		}
+	});
 	if (existsSync(SAVE_ROOT.fsPath)) { // Use this instead of /tmp because Windows not suprot /tmp
 		console.log("globalStoragePath: ", SAVE_ROOT.fsPath);
 	} else {
