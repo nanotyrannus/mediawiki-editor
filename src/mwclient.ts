@@ -1,11 +1,22 @@
 import * as vscode from 'vscode';
 import * as FormData from 'form-data';
 import * as NodeFetch from 'node-fetch';
+import * as path from 'path';
 import { stat } from 'fs';
 const fetch = require('fetch-cookie')(NodeFetch);
 
 const WIKI_URL = vscode.workspace.getConfiguration("mediawiki-editor").get("wikiUrl");
 const AS_BOT = vscode.workspace.getConfiguration("mediawiki-editor").get("asBot");
+
+interface HtmlResponse {
+    parse: {
+        title: string,
+        pageid: number,
+        text: {
+            "*" : string
+        }
+    }
+}
 
 interface PSResult {
     query?: {
@@ -342,6 +353,19 @@ export class MWClient {
         });
     }
 
+    // Helper function. Consider moving to own class if there are many more.
+    public static async getLatestRevisionAsync(pageTitle: string) {
+        let response = await this.getRevisionAsync(pageTitle);
+        let pageIds = Object.getOwnPropertyNames(response.query.pages);
+        let revisions = pageIds.map(id => {
+            return {
+                "user": response.query.pages[id].revisions[0].user,
+                "content": response.query.pages[id].revisions[0].slots.main["*"]
+            };
+        });
+        return revisions[0];
+    }
+
     public static async getHtmlAsync(page: string) {
         return new Promise<HtmlResponse>(async (resolve, reject) => {
             let form = new FormData();
@@ -360,15 +384,7 @@ export class MWClient {
     }
 
 }
-interface HtmlResponse {
-    parse: {
-        title: string,
-        pageid: number,
-        text: {
-            "*" : string
-        }
-    }
-}
+
 
 function logIt(result: any) {
     console.log(result);
