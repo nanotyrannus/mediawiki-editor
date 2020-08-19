@@ -1,11 +1,19 @@
 # mediawiki-editor README
 
-...
+![Demo video.]('/media/readme/mwe demo.gif')
 
 ## Features
 
 * Article previews
-* Wiki navigation
+* Interactive editing and navigation
+
+### TO DO
+
+* Autocomplete for wiki links and resources
+* Drag and drop file upload
+* Revision manager
+* Edit conflict resolution
+
 
 ## Requirements
 
@@ -15,6 +23,7 @@ None yet.
 
 * `mediawiki-editor.wikiURL` The base URL against which all API requests will be made.
 * `mediawiki-editor.asBot` Whether or not to mark edits done through this client as made by a bot. Default is `true`.
+* `mediawiki-editor.overrideEditPref` Override's wiki user's `Mark all edits minor` setting.
 
 ## Known Issues
 
