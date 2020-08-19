@@ -2,17 +2,44 @@ import * as vscode from 'vscode';
 import * as FormData from 'form-data';
 import * as NodeFetch from 'node-fetch';
 import * as path from 'path';
-import { stat } from 'fs';
 const fetch = require('fetch-cookie')(NodeFetch);
 
-const WIKI_URL = vscode.workspace.getConfiguration("mediawiki-editor").get("wikiUrl");
-const AS_BOT = vscode.workspace.getConfiguration("mediawiki-editor").get("asBot");
+let CONFIG = vscode.workspace.getConfiguration("mediawiki-editor");
+let WIKI_URL = CONFIG.get("wikiUrl");
+let AS_BOT = CONFIG.get("asBot");
+let OVERRIDE_EDIT_PREF = CONFIG.get("overrideEditPref");
 
-interface HtmlResponse {
+vscode.workspace.onDidChangeConfiguration(event => {
+    CONFIG = vscode.workspace.getConfiguration('mediawiki-editor');
+    if (event.affectsConfiguration('mediawiki-editor.asBot')) {
+        AS_BOT = CONFIG.get("asBot");
+    } else if (event.affectsConfiguration('mediawiki-editor.wikiUrl')) {
+        WIKI_URL = CONFIG.get('wikiUrl');
+    } else if (event.affectsConfiguration('mediawiki-editor.overrideEditPref')) {
+        OVERRIDE_EDIT_PREF = CONFIG.get("overrideEditPref");
+    }
+});
+
+if (!WIKI_URL) {
+    vscode.window.showErrorMessage("Wiki Url not set. This is needed to connect to the MediaWiki instance.", "OK", "Take me to the setting.").then(value => {
+        if (value === "Take me to the setting.") {
+            vscode.commands.executeCommand( 'workbench.action.openSettings', 'mediawiki-editor.wikiUrl');
+        }
+    });
+}
+
+/**
+ * If `FetchPageFormat` is `text`, read `text` property.
+ * Likewise, if `FetchPageFormat` is `wikitext`, read `wikitext` property.
+ */
+interface FetchPageResponse {
     parse: {
         title: string,
         pageid: number,
         text: {
+            "*" : string
+        },
+        wikitext: {
             "*" : string
         }
     }
@@ -247,7 +274,7 @@ export class MWClient {
      * @param title 
      * @param text 
      */
-    public static async commitEditsAsync(title: string, text: string): Promise<EditResult> {
+    public static async commitEditsAsync(title: string, text: string, minor: boolean, summary?: string): Promise<EditResult> {
         return new Promise(async (resolve, reject) => {
             let token = await this.getTokenAsync(TokenType.CSRF);
             if (token.query.tokens.csrftoken === '+\\') {
@@ -257,7 +284,14 @@ export class MWClient {
             let form = new FormData();
             form.append('action', 'edit');
             form.append('title', title);
-            form.append('notminor', 'true');
+            if (minor) {
+                form.append('minor', '');
+            } else if (OVERRIDE_EDIT_PREF && !minor) {
+                form.append('notminor', '');
+            }
+            if (summary !== undefined) {
+                form.append('summary', summary);
+            }
             form.append('bot', String(AS_BOT));
             // form.append('createonly', true);
             form.append('format', 'json');
@@ -271,6 +305,7 @@ export class MWClient {
             .then(statusCheck)
             .then(toJson)
             .then(logMessage(`commitEdits with token ${token.query.tokens.csrftoken}`));
+            resolve(response);
         });
     }
 
@@ -366,12 +401,16 @@ export class MWClient {
         return revisions[0];
     }
 
-    public static async getHtmlAsync(page: string) {
-        return new Promise<HtmlResponse>(async (resolve, reject) => {
+    public static async fetchPageContentsAsync(page: string, responseFormat: FetchPageFormat, section?: number) {
+        return new Promise<FetchPageResponse>(async (resolve, reject) => {
             let form = new FormData();
             form.append("action", "parse");
-            form.append("prop", "text");
+            form.append("prop", responseFormat);
             form.append("page", page);
+            if (section !== undefined) {
+                form.append('section', String(section));
+            }
+
             form.append("format", "json");
             form.append("curtimestamp", "true");
 
@@ -385,6 +424,10 @@ export class MWClient {
 
 }
 
+export enum FetchPageFormat {
+    wikitext = "wikitext",
+    html = "text"
+}
 
 function logIt(result: any) {
     console.log(result);
