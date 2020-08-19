@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MWClient } from './mwclient';
+import { MWClient, FetchPageFormat } from './mwclient';
 import path = require('path');
 import { existsSync, mkdirSync } from 'fs';
 import { Preview } from './preview';
@@ -21,7 +21,7 @@ function articlePickerDidChangeValueHandler(val: string) {
 	debounceTimeoutId = setTimeout(async () => {
 		let result = await MWClient.prefixSearchAsync(val);
 		let resultMap = result.query?.prefixsearch.map(item => {
-			
+
 			return {
 				label: item["title"]
 			};
@@ -43,8 +43,8 @@ articlePicker.onDidAccept(async () => {
 	const selectedItem = articlePicker.selectedItems[0];
 	const itemName = selectedItem.label;
 	let response = await vscode.window.withProgress({
-		"location" : vscode.ProgressLocation.Window,
-		"cancellable" : false,
+		"location": vscode.ProgressLocation.Window,
+		"cancellable": false,
 		"title": `Fetching ${itemName}`
 	}, async () => {
 		return MWClient.getRevisionAsync(itemName);
@@ -79,7 +79,9 @@ async function openEditor(wikiPageTitle: string, content: string) {
 	let document = await vscode.workspace.openTextDocument(file);
 	let edit = new vscode.WorkspaceEdit();
 	if (document.getText() === "" || overwrite === Overwrite.YES) {
-		edit.insert(file, new vscode.Position(0, 0), content);
+		let range = new vscode.Range(document.lineAt(0).range.start, document.lineAt(document.lineCount - 1).range.end);
+		edit.replace(file, range, content);
+		// edit.insert(file, new vscode.Position(0, 0), content);
 	}
 	return vscode.workspace.applyEdit(edit).then(success => {
 		if (success) {
@@ -97,9 +99,13 @@ export function activate(context: vscode.ExtensionContext) {
 	if (!workspaceFolder) {
 		vscode.window.showWarningMessage(`Workspace not found. Will place .wiki files in ${SAVE_ROOT.fsPath}`);
 	}
-	Preview.onOpenEditor(async (page) => {
-		let revision = await MWClient.getLatestRevisionAsync(page);
-		openEditor(page, revision.content);
+	Preview.onOpenEditor(async (event) => {
+		let response = await MWClient.fetchPageContentsAsync(event.title, FetchPageFormat.wikitext, event.section);
+		let title = event.title;
+		if (event.section !== undefined) {
+			title = `${title}_section_${event.section}`;
+		}
+		openEditor(title, response.parse.wikitext["*"]);
 	});
 	Preview.onLinkNew(async (page) => {
 		let answer = await vscode.window.showInformationMessage("Page does not yet exist. Open blank editor?", "Yes", "No");
@@ -123,8 +129,8 @@ export function activate(context: vscode.ExtensionContext) {
 	let loginCommand = vscode.commands.registerCommand('mediawiki-editor.login', async () => {
 		try {
 			let loginResponse = await MWClient.loginAsync(
-				await vscode.window.showInputBox({prompt: "Username", ignoreFocusOut: true}) || "",
-				await vscode.window.showInputBox({prompt: "Password", ignoreFocusOut: true, password: true}) || ""
+				await vscode.window.showInputBox({ prompt: "Username", ignoreFocusOut: true }) || "",
+				await vscode.window.showInputBox({ prompt: "Password", ignoreFocusOut: true, password: true }) || ""
 			);
 			if (loginResponse.clientlogin.status === 'PASS') {
 				vscode.window.showInformationMessage(`Successfully logged in as ${loginResponse.clientlogin.username}`);
@@ -141,8 +147,18 @@ export function activate(context: vscode.ExtensionContext) {
 		try {
 			let articlePath = await vscode.window.showQuickPick(vscode.workspace.textDocuments.map(docs => path.basename(docs.fileName)));
 			if (articlePath) {
+				let summary = await vscode.window.showInputBox({placeHolder: "Edit Summary (Esc to cancel, Enter to submit no summary)",ignoreFocusOut: true});
+				if (summary === undefined) {
+					return;
+				}
+
+				if (path.basename(articlePath, ".wiki").search(/section_[0-9]+$/) > 0) {
+					// Commit specific section.
+
+				}
+
 				let file = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(SAVE_ROOT, articlePath));
-				let result = await MWClient.commitEditsAsync(path.basename(articlePath, ".wiki"), file.toString());
+				let result = await MWClient.commitEditsAsync(path.basename(articlePath, ".wiki"), file.toString(), false, summary);
 				if (result.edit.result === 'Success') {
 					if (result.hasOwnProperty("nochange")) {
 						vscode.window.showInformationMessage(`Success. No change to ${result.edit.title}`);
@@ -161,6 +177,27 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	let commitEditsMinorCommand = vscode.commands.registerCommand('mediawiki-editor.commitEditsMinor', async () => {
+		console.log(`Commit Edits (Minor)`);
+		let articlePath = await vscode.window.showQuickPick(vscode.workspace.textDocuments.map(docs => path.basename(docs.fileName)));
+		if (articlePath) {
+			let file = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(SAVE_ROOT, articlePath));
+			let result = await MWClient.commitEditsAsync(path.basename(articlePath, ".wiki"), file.toString(), true);
+			if (result.edit.result === 'Success') {
+				if (result.hasOwnProperty("nochange")) {
+					vscode.window.showInformationMessage(`Success. No change to ${result.edit.title}`);
+				} else {
+					vscode.window.showInformationMessage(`Success. Revision ${result.edit.newrevid} at ${result.edit.newtimestamp}`);
+				}
+			} else {
+				vscode.window.showErrorMessage(`Error, edit to ${result.edit.title} not successful.`);
+				console.log(result);
+			}
+		} else {
+			console.warn("articlePath falsy: ", articlePath);
+		}
+	});
+
 	const provider = new RevisionProvider();
 
 	vscode.window.registerTreeDataProvider(
@@ -175,22 +212,24 @@ export function activate(context: vscode.ExtensionContext) {
 		console.warn("NOT IMPLEMENTED");
 	});
 
-	context.subscriptions.push(findArticle,loginCommand, commitEditsCommand);
+	context.subscriptions.push(findArticle, loginCommand, commitEditsCommand, commitEditsMinorCommand);
 
 	vscode.workspace.onWillSaveTextDocument(async event => {
 		console.log("Document save event");
 		if (!Preview.getInstance().isEmpty()) {
 			Preview.getInstance().fadeOut();
 		}
-		Preview.getInstance().setPanelTitle("Previewing: " + path.basename(event.document.fileName));
+		let articleTitle = path.basename(event.document.fileName, ".wiki");
+		Preview.getInstance().setPanelTitle("Previewing: " + articleTitle);
 		let parsedTextResponse = await vscode.window.withProgress({
-			"cancellable" : false,
-			"location" : vscode.ProgressLocation.Window,
-			"title" : `Loading preview for ${path.basename(event.document.fileName)}`
+			"cancellable": false,
+			"location": vscode.ProgressLocation.Window,
+			"title": `Loading preview for ${path.basename(event.document.fileName)}`
 		}, _ => {
 			return MWClient.getParsedWikiText(event.document.getText());
-		}); 
+		});
 		Preview.getInstance().setWikiHtml(parsedTextResponse.parse.text["*"]);
+		Preview.getInstance().setArticleTitle(articleTitle);
 		Preview.getInstance().finalize();
 		Preview.show();
 	});
@@ -214,7 +253,7 @@ export class RevisionProvider implements vscode.TreeDataProvider<Revision> {
 				let a = this.pages.get(element.label);
 				return Promise.resolve([]);
 			}
-			return Promise.resolve([new Revision("revision",vscode.TreeItemCollapsibleState.None, false),]);
+			return Promise.resolve([new Revision("revision", vscode.TreeItemCollapsibleState.None, false),]);
 		} else {
 			// let revisionsMap = vscode.workspace.textDocuments.map(document => {
 			// 	if (document.fileName.indexOf(".wiki") < 0)  {
@@ -224,8 +263,8 @@ export class RevisionProvider implements vscode.TreeDataProvider<Revision> {
 			// });
 			let a = new Set();
 			let articles = vscode.workspace.textDocuments
-										   .filter(document => document.fileName.indexOf(".wiki") >= 0)
-										   .map(document => path.basename(document.fileName, ".wiki"));
+				.filter(document => document.fileName.indexOf(".wiki") >= 0)
+				.map(document => path.basename(document.fileName, ".wiki"));
 			// Gather all new documents
 			let newArticles = articles.filter(articleName => !this.pages.has(articleName));
 			console.log(`${newArticles.length} new articles`, newArticles);
@@ -240,7 +279,7 @@ export class RevisionProvider implements vscode.TreeDataProvider<Revision> {
 					return Promise.resolve([new Revision(page.title, vscode.TreeItemCollapsibleState.Expanded, true)]);
 				}
 			}
-			
+
 			return Promise.resolve([]);
 			// let revisions = articles.map(doc => {
 			// 	return new Revision(path.basename(doc.fileName,".wiki"), vscode.TreeItemCollapsibleState.Collapsed, true);
@@ -248,12 +287,12 @@ export class RevisionProvider implements vscode.TreeDataProvider<Revision> {
 		}
 	}
 
-	private _onDidChangeTreeData: vscode.EventEmitter<Revision|undefined> = new vscode.EventEmitter<Revision|undefined>();
-	readonly onDidChangeTreeData: vscode.Event<Revision|undefined> = this._onDidChangeTreeData.event;
+	private _onDidChangeTreeData: vscode.EventEmitter<Revision | undefined> = new vscode.EventEmitter<Revision | undefined>();
+	readonly onDidChangeTreeData: vscode.Event<Revision | undefined> = this._onDidChangeTreeData.event;
 
 	refresh(changedElement?: Revision): void {
 		this._onDidChangeTreeData.fire(changedElement);
-	}	
+	}
 }
 
 
@@ -270,14 +309,14 @@ class Revision extends vscode.TreeItem {
 	) {
 		super(label, collapsibleState);
 		if (isPage) {
-			this.iconPath = { 
-				light : path.join(__filename, '..','..',"media", "file.svg"),
-				dark : path.join(__filename, '..','..',"media", "file_dark.svg")
+			this.iconPath = {
+				light: path.join(__filename, '..', '..', "media", "file.svg"),
+				dark: path.join(__filename, '..', '..', "media", "file_dark.svg")
 			};
 		} else {
-			this.iconPath = { 
-				light : path.join(__filename, '..','..',"media", "go-to-file.svg"),
-				dark : path.join(__filename, '..','..',"media", "go-to-file_dark.svg")
+			this.iconPath = {
+				light: path.join(__filename, '..', '..', "media", "go-to-file.svg"),
+				dark: path.join(__filename, '..', '..', "media", "go-to-file_dark.svg")
 			};
 		}
 	}

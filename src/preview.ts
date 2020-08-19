@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { MWClient } from './mwclient';
+import { MWClient, FetchPageFormat } from './mwclient';
 
 const WIKI_URL = vscode.workspace.getConfiguration("mediawiki-editor").get("wikiUrl");
 
@@ -9,7 +9,8 @@ export class Preview {
     private style = "";
     public disposed: boolean;
     private panel: vscode.WebviewPanel;
-    private static _onOpenEditor = new vscode.EventEmitter<string>();
+    private articleTitle: string;
+    private static _onOpenEditor = new vscode.EventEmitter<{title:string, section?: number}>();
     private static _onLinkNew = new vscode.EventEmitter<string>();
     public static readonly onOpenEditor = Preview._onOpenEditor.event;
     public static readonly onLinkNew = Preview._onLinkNew.event;
@@ -17,6 +18,7 @@ export class Preview {
     private constructor() {
         this.panel = this.WebviewPanelFactory();
         this.disposed = false;
+        this.articleTitle = "";
     }
 
     private static async navigateTo(page: string) {
@@ -26,10 +28,11 @@ export class Preview {
         // let pageId = Object.getOwnPropertyNames(html.query.pages)[0];
         // instance.setWikiHtml(html.query.pages[pageId].revisions[0].slots["main"]["*"]);
         // instance.finalize();
-        let html = await MWClient.getHtmlAsync(page);
+        let html = await MWClient.fetchPageContentsAsync(page, FetchPageFormat.html);
         instance.setWikiHtml(html.parse.text["*"]);
+        instance.setArticleTitle(page);
         instance.finalize();
-        instance.panel.webview.postMessage({command:'show-edit-btn', data: page});
+        instance.panel.webview.postMessage({ command: 'show-edit-btn', data: page });
     }
 
     private WebviewPanelFactory(): vscode.WebviewPanel {
@@ -38,11 +41,19 @@ export class Preview {
         panel.onDidDispose(_ => {
             console.log("WebviewPanel Disposed.");
             this.disposed = true;
+            this.articleTitle = "";
         });
         panel.webview.onDidReceiveMessage(async message => {
             switch (message.command) {
                 case 'edit': // Opens section in editor.
-                    vscode.window.showInformationMessage("edit: " + message.data);
+                    if (!this.articleTitle) {
+                        vscode.window.showWarningMessage(`articleTitle not set.`);
+                    } else {
+                        // vscode.window.showInformationMessage("edit: " + message.data.match(/section=([0-9]+)/)?.[1] ?? `Didn't match: ${message.data}`);
+                        let section = message.data.match(/section=([0-9]+)/)?.[1];
+                        // let sectionContent = await MWClient.fetchPageContentsAsync(this.articleTitle, FetchPageFormat.wikitext);
+                        Preview._onOpenEditor.fire({title: this.articleTitle, section: section});
+                    }
                     break;
                 case 'link': // Opens preview in detached mode.
                     vscode.window.showInformationMessage("link: " + message.data);
@@ -52,7 +63,6 @@ export class Preview {
                     Preview.navigateTo(title);
                     break;
                 case 'link-new': // Ask if user wants to create page.
-                    // vscode.window.showInformationMessage("link-new: " + message.data);
                     let href = <string>message.data;
                     if (href.indexOf("redlink") > 0) {
                         let page = href.match(/title=([_a-zA-Z]+)/)?.[1] ?? "";
@@ -66,7 +76,8 @@ export class Preview {
                     }
                     break;
                 case 'open-editor':
-                    Preview._onOpenEditor.fire(message.data);
+                    console.log(`OPEN EDITOR:`, message);
+                    Preview._onOpenEditor.fire({title: message.data});
                     break;
                 default: vscode.window.showWarningMessage(`Unknown command: ${message.command}`);
             }
@@ -83,6 +94,10 @@ export class Preview {
             Preview.instance.disposed = false;
         }
         return this.instance;
+    }
+
+    public setArticleTitle(title: string) {
+        this.articleTitle = title;
     }
 
     public setPanelTitle(title: string): void {

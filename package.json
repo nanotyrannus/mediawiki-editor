@@ -61,7 +61,11 @@
 			},
 			{
 				"command": "mediawiki-editor.commitEdits",
-				"title": "Commit Edits to wiki"
+				"title": "Commit Edits to Wiki"
+			},
+			{
+				"command": "mediawiki-editor.commitEditsMinor",
+				"title" : "Commit Edits to Wiki (minor)"
 			}
 		],
 		"configuration": {
@@ -86,6 +90,11 @@
 					"type": "boolean",
 					"default": true,
 					"markdownDescription": "Mark edits as having been done by a bot."
+				},
+				"mediawiki-editor.overrideEditPref" : {
+					"type" : "boolean",
+					"default" : false,
+					"markdownDescription": "If active, overrides `Mark all edits minor by default` preference on user's account."
 				}
 			}
 		}

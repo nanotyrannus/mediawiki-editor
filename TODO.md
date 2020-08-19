@@ -9,13 +9,14 @@ An extension that turns VSCode into an editor for your wiki.
 - [ ] Roll own node-fetch to save cookie state between sessions.  
 - [ ] Optional comment before commit  
 - [ ] Tree View for revisions  
-- [ ] Add multi-revision view  
 - [ ] Add page stack for back-forward navigation on Preview  
-- [ ] Drag and Drop image upload interface  
+- [ ] Add multi-revision view  
+- [ ] Resolve edit conflicts.  
 
 ### In Progress
 
-- [ ] Clickable Edit links to edit section  
+- [ ] Split commit edits to whole-article and section.  
+- [ ] Drag and Drop image upload interface  
 
 ### Done ✓
 
@@ -24,4 +25,6 @@ An extension that turns VSCode into an editor for your wiki.
 - [x] Login  
 - [x] Article Preview  
 - [x] Add interactive links on Preview.  
+- [x] Major and Minor edits with summary  
+- [x] Clickable Edit links to edit section  
 
