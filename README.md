@@ -1,6 +1,6 @@
 # mediawiki-editor README
 
-![Demo video.]('/media/readme/mwe demo.gif')
+![Demo video.](media/readme/demo.gif)
 
 ## Features
 
