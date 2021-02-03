@@ -3,6 +3,7 @@ import { MWClient, FetchPageFormat } from './mwclient';
 import path = require('path');
 import { existsSync, mkdirSync } from 'fs';
 import { Preview } from './preview';
+import { UploadDialog } from './upload-dialog';
 import { parse } from 'path';
 
 let articlePicker = vscode.window.createQuickPick();
@@ -198,6 +199,12 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
+	let uploadFileCommand = vscode.commands.registerCommand('mediawiki-editor.uploadFileCommand', async () => {
+		console.log(`Upload File Command`);
+		UploadDialog.getInstance();
+		UploadDialog.show();
+	});
+
 	const provider = new RevisionProvider();
 
 	vscode.window.registerTreeDataProvider(
@@ -212,7 +219,7 @@ export function activate(context: vscode.ExtensionContext) {
 		console.warn("NOT IMPLEMENTED");
 	});
 
-	context.subscriptions.push(findArticle, loginCommand, commitEditsCommand, commitEditsMinorCommand);
+	context.subscriptions.push(findArticle, loginCommand, commitEditsCommand, commitEditsMinorCommand, uploadFileCommand);
 
 	vscode.workspace.onWillSaveTextDocument(async event => {
 		console.log("Document save event");
@@ -321,9 +328,7 @@ class Revision extends vscode.TreeItem {
 		}
 	}
 
-	get tooltip(): string {
-		return "";
-	}
+	tooltip = "My tooltip.";
 
 	// get description(): string {
 	// 	// Should this be creation timestamp?

@@ -66,6 +66,10 @@
 			{
 				"command": "mediawiki-editor.commitEditsMinor",
 				"title" : "Commit Edits to Wiki (minor)"
+			},
+			{
+				"command" : "mediawiki-editor.uploadFileCommand",
+				"title": "Open File Upload Dialog"
 			}
 		],
 		"configuration": {
