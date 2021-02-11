@@ -1,134 +1,131 @@
 {
-	"name": "mediawiki-editor",
-	"displayName": "MediaWiki Editor",
-	"description": "An extension that makes editing wiki articles easier.",
-	"version": "0.0.1",
-	"engines": {
-		"vscode": "^1.45.0"
-	},
-	"categories": [
-		"Other"
-	],
-	"activationEvents": [
-		"onCommand:mediawiki-editor.helloWorld",
-		"onLanguage:mediawiki",
-		"onCommand:mediawiki-editor.findArticle",
-		"workspaceContains:**/*.wiki"
-	],
-	"main": "./out/extension.js",
-	"contributes": {
-		"viewsContainers": {
-			"activitybar": [
-				{
-					"id": "revision-container",
-					"title": "Revision Explorer",
-					"icon": "media/icon_dark.svg"
-				}
-			]
-		},
-		"menus": {
-			"view/title": [
-				{
-					"command": "mediawiki-editor.refreshEntry",
-					"when": "view == revisionExplorer",
-					"group": "navigation"
-				}
-			]
-		},
-		"views": {
-			"revision-container": [
-				{
-					"id": "revisionExplorer",
-					"name": "Revision Explorer"
-				}
-			]
-		},
-		"commands": [
-			{
-				"command": "mediawiki-editor.refreshEntry",
-				"title": "Refresh",
-				"icon": {
-					"light": "media/refresh_light.svg",
-					"dark": "media/refresh_dark.svg"
-				}
-			},
-			{
-				"command": "mediawiki-editor.login",
-				"title": "Login to Wiki"
-			},
-			{
-				"command": "mediawiki-editor.findArticle",
-				"title": "Search for a Wiki Article"
-			},
-			{
-				"command": "mediawiki-editor.commitEdits",
-				"title": "Commit Edits to Wiki"
-			},
-			{
-				"command": "mediawiki-editor.commitEditsMinor",
-				"title": "Commit Edits to Wiki (minor)"
-			}
-		],
-		"configuration": {
-			"title": "MediaWiki Editor",
-			"properties": {
-				"mediawiki-editor.wikiUrl": {
-					"type": "string",
-					"default": "",
-					"markdownDescription": "The URL of the wiki's article path, e.g. `https://wikipedia.org/w`."
-				},
-				"mediawiki-editor.enums": {
-					"type": "boolean",
-					"default": true
-				},
-				"mediawiki-editor.number": {
-					"type": "number",
-					"default": 1,
-					"minimum": 1,
-					"maximum": 20
-				},
-				"mediawiki-editor.asBot": {
-					"type": "boolean",
-					"default": true,
-					"markdownDescription": "Mark edits as having been done by a bot."
-				},
-				"mediawiki-editor.overrideEditPref": {
-					"type": "boolean",
-					"default": false,
-					"markdownDescription": "If active, overrides `Mark all edits minor by default` preference on user's account."
-				}
-			}
-		}
-	},
-	"scripts": {
-		"vscode:prepublish": "yarn run compile",
-		"compile": "tsc -p ./",
-		"lint": "eslint src --ext ts",
-		"watch": "tsc -watch -p ./",
-		"pretest": "yarn run compile && yarn run lint",
-		"test": "node ./out/test/runTest.js"
-	},
-	"devDependencies": {
-		"@types/glob": "^7.1.1",
-		"@types/mocha": "^7.0.2",
-		"@types/node": "^13.11.0",
-		"@types/vscode": "^1.45.0",
-		"@typescript-eslint/eslint-plugin": "^2.30.0",
-		"@typescript-eslint/parser": "^2.30.0",
-		"eslint": "^6.8.0",
-		"glob": "^7.1.6",
-		"mocha": "^7.1.2",
-		"typescript": "^3.8.3",
-		"vscode-test": "^1.3.0"
-	},
-	"dependencies": {
-		"@types/node-fetch": "^2.5.7",
-		"@types/tough-cookie": "^4.0.0",
-		"@types/tough-cookie-filestore": "^0.0.0",
-		"fetch-cookie": "^0.9.1",
-		"form-data": "^3.0.0",
-		"node-fetch": "^2.6.0",
-		"tough-cookie": "^4.0.0",
-		"tough-cookie-filestore": "^0.0.1"
-	}
+    "name": "mediawiki-editor",
+    "displayName": "MediaWiki Editor",
+    "description": "An extension that makes editing wiki articles easier.",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.45.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onCommand:mediawiki-editor.helloWorld",
+        "onLanguage:mediawiki",
+        "onCommand:mediawiki-editor.findArticle",
+        "workspaceContains:**/*.wiki"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [{
+                "id": "revision-container",
+                "title": "Revision Explorer",
+                "icon": "media/icon_dark.svg"
+            }]
+        },
+        "menus": {
+            "view/title": [{
+                "command": "mediawiki-editor.refreshEntry",
+                "when": "view == revisionExplorer",
+                "group": "navigation"
+            }]
+        },
+        "views": {
+            "revision-container": [{
+                "id": "revisionExplorer",
+                "name": "Revision Explorer"
+            }]
+        },
+        "commands": [{
+                "command": "mediawiki-editor.refreshEntry",
+                "title": "Refresh",
+                "icon": {
+                    "light": "media/refresh_light.svg",
+                    "dark": "media/refresh_dark.svg"
+                }
+            },
+            {
+                "command": "mediawiki-editor.login",
+                "title": "Login to Wiki"
+            },
+            {
+                "command": "mediawiki-editor.findArticle",
+                "title": "Search for a Wiki Article"
+            },
+            {
+                "command": "mediawiki-editor.commitEdits",
+                "title": "Commit Edits to Wiki"
+            },
+            {
+                "command": "mediawiki-editor.commitEditsMinor",
+                "title": "Commit Edits to Wiki (minor)"
+            },
+            {
+                "command": "mediawiki-editor.uploadFileCommand",
+                "title": "Open File Upload Dialog"
+            }
+        ],
+        "configuration": {
+            "title": "MediaWiki Editor",
+            "properties": {
+                "mediawiki-editor.wikiUrl": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "The URL of the wiki's article path, e.g. `https://wikipedia.org/w`."
+                },
+                "mediawiki-editor.enums": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "mediawiki-editor.number": {
+                    "type": "number",
+                    "default": 1,
+                    "minimum": 1,
+                    "maximum": 20
+                },
+                "mediawiki-editor.asBot": {
+                    "type": "boolean",
+                    "default": true,
+                    "markdownDescription": "Mark edits as having been done by a bot."
+                },
+                "mediawiki-editor.overrideEditPref": {
+                    "type": "boolean",
+                    "default": false,
+                    "markdownDescription": "If active, overrides `Mark all edits minor by default` preference on user's account."
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "yarn run compile",
+        "compile": "tsc -p ./",
+        "lint": "eslint src --ext ts",
+        "watch": "tsc -watch -p ./",
+        "pretest": "yarn run compile && yarn run lint",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/glob": "^7.1.1",
+        "@types/mocha": "^7.0.2",
+        "@types/node": "^13.11.0",
+        "@types/vscode": "^1.45.0",
+        "@typescript-eslint/eslint-plugin": "^2.30.0",
+        "@typescript-eslint/parser": "^2.30.0",
+        "eslint": "^6.8.0",
+        "glob": "^7.1.6",
+        "mocha": "^7.1.2",
+        "typescript": "^3.8.3",
+        "vscode-test": "^1.3.0"
+    },
+    "dependencies": {
+        "@types/node-fetch": "^2.5.7",
+        "@types/tough-cookie": "^4.0.0",
+        "@types/tough-cookie-filestore": "^0.0.0",
+        "fetch-cookie": "^0.9.1",
+        "form-data": "^3.0.0",
+        "node-fetch": "^2.6.0",
+        "tough-cookie": "^4.0.0",
+        "tough-cookie-filestore": "^0.0.1"
+    }
 }
