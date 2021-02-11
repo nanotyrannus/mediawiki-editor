@@ -201,6 +201,8 @@ export function activate(context: vscode.ExtensionContext) {
 
 	let uploadFileCommand = vscode.commands.registerCommand('mediawiki-editor.uploadFileCommand', async () => {
 		console.log(`Upload File Command`);
+		let scriptPath = vscode.Uri.file(path.join(context.extensionPath, "out"));
+		UploadDialog.setResourcePath(scriptPath);
 		UploadDialog.getInstance();
 		UploadDialog.show();
 	});

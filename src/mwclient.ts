@@ -163,6 +163,7 @@ interface EditResult {
         newtimestamp: string 
     }
 }
+
 enum TokenType {
     CREATE_ACCOUNT = "createaccount",
     CSRF = "csrf",
@@ -213,6 +214,10 @@ export class MWClient {
         });
     }
 
+    public static getCsrfToken(): Promise<TokenResult> {
+        return this.getTokenAsync(TokenType.CSRF);
+    }
+
     private static async getTokenAsync(token: TokenType): Promise<TokenResult> {
         return new Promise(async (resolve, reject) => {
             let form = new FormData();
@@ -250,7 +255,6 @@ export class MWClient {
     }
 
     public static async getParsedWikiText(text: string): Promise<ParsedResponse> {
-        return new Promise(async (resolve, reject) => {
             let form = new FormData();
             form.append('action', 'parse');
             form.append('format', 'json');
@@ -258,15 +262,18 @@ export class MWClient {
             form.append('contentmodel','wikitext');
             form.append('curtimestamp', 'true');
 
-            let response = await fetch(`${WIKI_URL}/api.php`, {
-                method: 'POST',
-                body: form
-            })
-            .then(statusCheck)
-            .then(toJson);
+            try {
+                var response = await fetch(`${WIKI_URL}/api.php`, {
+                    method: 'POST',
+                    body: form
+                })
+                .then(statusCheck)
+                .then(toJson);
+            } catch (e) {
+                throw Promise.reject(e);
+            }
 
-            resolve(response);
-        });
+            return response;
     }
 
     /**
@@ -315,28 +322,27 @@ export class MWClient {
      * in the future to a more transparent/programmatic strategy.
      */
     public static async loginAsync(username: string, password: string): Promise<LoginResult> {
-        return new Promise(async (resolve, reject) => {
-            let tokenResult = await this.getTokenAsync(TokenType.LOGIN);
-            if (tokenResult.query.tokens.logintoken === "+\\") {
-                return reject(new Error("Empty login token."));
-            }
-            let form = new FormData();
-            form.append('action', 'clientlogin');
-            form.append('loginreturnurl', `${WIKI_URL}`);
-            form.append('logintoken', tokenResult.query.tokens.logintoken);
-            form.append('username', username);
-            form.append('password', password);
-            form.append('format', 'json');
-    
-            let response = await fetch(`${WIKI_URL}/api.php`, {
-                method: 'POST',
-                body: form
-            })
-            .then(statusCheck)
-            .then(toJson)
-            .then(logIt);
-            resolve(response);
-        });
+        let tokenResult = await this.getTokenAsync(TokenType.LOGIN);
+        if (tokenResult.query.tokens.logintoken === "+\\") {
+            throw new Error("Empty login token.");
+        }
+        let form = new FormData();
+        form.append('action', 'clientlogin');
+        form.append('loginreturnurl', `${WIKI_URL}`);
+        form.append('logintoken', tokenResult.query.tokens.logintoken);
+        form.append('username', username);
+        form.append('password', password);
+        form.append('format', 'json');
+
+        let response = await fetch(`${WIKI_URL}/api.php`, {
+            method: 'POST',
+            body: form
+        })
+        .then(statusCheck)
+        .then(toJson)
+        .then(logIt);
+        
+        return response;
     }
 
     /**
@@ -401,12 +407,33 @@ export class MWClient {
         return revisions[0];
     }
 
+    public static async uploadFileAsync(filename: string, file: any, text?: string) {
+        let form = new FormData();
+        let token = await this.getTokenAsync(TokenType.CSRF);
+        form.append('action', 'upload');
+        form.append('file', file);
+        form.append('filesize', 0);
+        form.append('token', token);
+        
+        if (text) {
+            form.append('text', text);
+        }
+
+        let response = await fetch(`${WIKI_URL}/api.php`, {
+            method: 'POST',
+            body: form
+        })
+        .then(toJson);
+
+        return response;
+    }
+
     public static async fetchPageContentsAsync(page: string, responseFormat: FetchPageFormat, section?: number) {
-        return new Promise<FetchPageResponse>(async (resolve, reject) => {
             let form = new FormData();
             form.append("action", "parse");
             form.append("prop", responseFormat);
             form.append("page", page);
+
             if (section !== undefined) {
                 form.append('section', String(section));
             }
@@ -414,12 +441,16 @@ export class MWClient {
             form.append("format", "json");
             form.append("curtimestamp", "true");
 
-            let response = await fetch(`${WIKI_URL}/api.php`, {
-                method: 'POST',
-                body: form
-            }).then(toJson);
-            resolve(response);
-        });
+            try {
+                var response = await fetch(`${WIKI_URL}/api.php`, {
+                    method: 'POST',
+                    body: form
+                }).then(toJson);
+            } catch (e) {
+                throw Promise.reject(e);
+            }
+
+            return response;
     }
 
 }
