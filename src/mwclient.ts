@@ -2,7 +2,10 @@ import * as vscode from 'vscode';
 import * as FormData from 'form-data';
 import * as NodeFetch from 'node-fetch';
 import * as path from 'path';
-const fetch = require('fetch-cookie')(NodeFetch);
+import { CookieJar } from 'tough-cookie';
+let jar = new CookieJar();
+let fetchCookie = require('fetch-cookie');
+let fetch = require('fetch-cookie')(NodeFetch, jar);
 
 let CONFIG = vscode.workspace.getConfiguration("mediawiki-editor");
 let WIKI_URL = CONFIG.get("wikiUrl");
@@ -13,6 +16,7 @@ vscode.workspace.onDidChangeConfiguration(event => {
     CONFIG = vscode.workspace.getConfiguration('mediawiki-editor');
     if (event.affectsConfiguration('mediawiki-editor.asBot')) {
         AS_BOT = CONFIG.get("asBot");
+        // vscode.commands.executeCommand('workbench.action.reloadWindow');
     } else if (event.affectsConfiguration('mediawiki-editor.wikiUrl')) {
         WIKI_URL = CONFIG.get('wikiUrl');
     } else if (event.affectsConfiguration('mediawiki-editor.overrideEditPref')) {
@@ -29,7 +33,7 @@ if (!WIKI_URL) {
 }
 
 /**
- * If `FetchPageFormat` is `text`, read `text` property.
+ * @summary If `FetchPageFormat` is `text`, read `text` property.
  * Likewise, if `FetchPageFormat` is `wikitext`, read `wikitext` property.
  */
 interface FetchPageResponse {
@@ -191,12 +195,28 @@ interface ParsedResponse {
 
 export class MWClient {
 
+    private static context: vscode.ExtensionContext;
+    
+
+    public static async initializeAsync(context: vscode.ExtensionContext) {
+        MWClient.context = context;
+        let cookie;
+        // If cookie exists, load this into fetch;
+        if (cookie = context.globalState.get('cookie')) {
+            console.log(`Loading cookie`, cookie);
+            jar = CookieJar.deserializeSync(<string>cookie);   
+            fetch = fetchCookie(NodeFetch, jar);
+        } else {
+            console.log(`No cookie found`, cookie);
+        }
+    }
+
     /**
      * @summary Search wiki articles by prefix. Does not search through
      * article content other than the title.
      */
+
     public static async prefixSearchAsync(query: string): Promise<PSResult> {
-        return new Promise<PSResult>(async (resolve, reject) => {
             let form = new FormData();
             form.append('action', 'query');
             form.append('list', 'prefixsearch');
@@ -207,10 +227,9 @@ export class MWClient {
             let result = await fetch(`${WIKI_URL}/api.php`, {
                 method: 'POST',
                 body: form
-            })
-            .then(toJson);
-            resolve(result);
-        });
+            });
+            await toJson(result);
+            return result;
     }
 
     private static async getTokenAsync(token: TokenType): Promise<TokenResult> {
@@ -304,7 +323,8 @@ export class MWClient {
             })
             .then(statusCheck)
             .then(toJson)
-            .then(logMessage(`commitEdits with token ${token.query.tokens.csrftoken}`));
+            .then(logMessage(`commitEdits with token ${token.query.tokens.csrftoken}`))
+            .then(MWClient.saveCookie);
             resolve(response);
         });
     }
@@ -327,14 +347,15 @@ export class MWClient {
             form.append('username', username);
             form.append('password', password);
             form.append('format', 'json');
-    
+            
             let response = await fetch(`${WIKI_URL}/api.php`, {
                 method: 'POST',
                 body: form
             })
             .then(statusCheck)
             .then(toJson)
-            .then(logIt);
+            .then(logIt)
+            .then(MWClient.saveCookie);
             resolve(response);
         });
     }
@@ -422,6 +443,13 @@ export class MWClient {
         });
     }
 
+    private static async saveCookie(result: any){
+        // console.log(`Saving cookie state to persistent memory.`);
+        console.log(`Cookies:`, jar.serializeSync());
+        // await MWClient.context.globalState.update('cookie', jar.serializeSync());
+        // console.log(`Saved cookie:`, await MWClient.context.globalState.get('cookie'));
+        return Promise.resolve(result);
+    }
 }
 
 export enum FetchPageFormat {
@@ -429,7 +457,13 @@ export enum FetchPageFormat {
     html = "text"
 }
 
-function logIt(result: any) {
+// function saveCookie(result: any) {
+//     console.log(`Saving cookie to persistent memory.`);
+    
+//     return Promise.resolve(result);
+// } 
+
+async function logIt(result: any) {
     console.log(result);
     return Promise.resolve(result);
 }

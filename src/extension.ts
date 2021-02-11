@@ -94,6 +94,7 @@ async function openEditor(wikiPageTitle: string, content: string) {
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Extension mediawiki-editor active.');
+	MWClient.initializeAsync(context);
 	let workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 	SAVE_ROOT = workspaceFolder?.uri ?? vscode.Uri.parse(context.globalStoragePath);
 	if (!workspaceFolder) {
