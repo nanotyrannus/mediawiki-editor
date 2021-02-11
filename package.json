@@ -12,7 +12,8 @@
 	"activationEvents": [
 		"onCommand:mediawiki-editor.helloWorld",
 		"onLanguage:mediawiki",
-		"onCommand:mediawiki-editor.findArticle"
+		"onCommand:mediawiki-editor.findArticle",
+		"workspaceContains:**/*.wiki"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -65,7 +66,7 @@
 			},
 			{
 				"command": "mediawiki-editor.commitEditsMinor",
-				"title" : "Commit Edits to Wiki (minor)"
+				"title": "Commit Edits to Wiki (minor)"
 			}
 		],
 		"configuration": {
@@ -91,9 +92,9 @@
 					"default": true,
 					"markdownDescription": "Mark edits as having been done by a bot."
 				},
-				"mediawiki-editor.overrideEditPref" : {
-					"type" : "boolean",
-					"default" : false,
+				"mediawiki-editor.overrideEditPref": {
+					"type": "boolean",
+					"default": false,
 					"markdownDescription": "If active, overrides `Mark all edits minor by default` preference on user's account."
 				}
 			}
@@ -122,8 +123,12 @@
 	},
 	"dependencies": {
 		"@types/node-fetch": "^2.5.7",
+		"@types/tough-cookie": "^4.0.0",
+		"@types/tough-cookie-filestore": "^0.0.0",
 		"fetch-cookie": "^0.9.1",
 		"form-data": "^3.0.0",
-		"node-fetch": "^2.6.0"
+		"node-fetch": "^2.6.0",
+		"tough-cookie": "^4.0.0",
+		"tough-cookie-filestore": "^0.0.1"
 	}
 }
