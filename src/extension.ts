@@ -226,6 +226,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	vscode.workspace.onWillSaveTextDocument(async event => {
 		console.log("Document save event");
+		let instance = Preview.getInstance();
 		if (!Preview.getInstance().isEmpty()) {
 			Preview.getInstance().fadeOut();
 		}
